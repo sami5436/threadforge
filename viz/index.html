@@ -1,0 +1,1652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0" />
+<title>ThreadForge Visualizer</title>
+<style>
+  :root {
+    --bg:        #0e1116;
+    --bg-2:      #161b22;
+    --bg-3:      #1f2630;
+    --line:      #2a3340;
+    --line-2:    #3a4658;
+    --fg:        #e6edf3;
+    --fg-dim:    #9aa6b2;
+    --fg-faint:  #6b7785;
+    --accent:    #79c0ff;
+    --accent-2:  #d2a8ff;
+    --green:     #56d364;
+    --yellow:    #e3b341;
+    --red:       #f85149;
+    --orange:    #ffa657;
+    --cyan:      #76e3e3;
+    --pink:      #ff7b72;
+    --shadow:    0 1px 0 rgba(255,255,255,.04), 0 4px 16px rgba(0,0,0,.35);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; min-height: 100vh; background: var(--bg);
+    color: var(--fg); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    font-size: 14px; line-height: 1.55;
+  }
+  code, pre, .mono { font-family: 'SF Mono', 'Menlo', 'Consolas', monospace; }
+  a { color: var(--accent); }
+  button {
+    font: inherit; color: var(--fg); background: var(--bg-3);
+    border: 1px solid var(--line-2); border-radius: 6px;
+    padding: 6px 12px; cursor: pointer; transition: background .15s, border-color .15s;
+  }
+  button:hover { background: var(--line); border-color: var(--accent); }
+  button:active { transform: translateY(1px); }
+  button.primary { background: #1f6feb; border-color: #1f6feb; color: white; }
+  button.primary:hover { background: #388bfd; border-color: #388bfd; }
+  button.danger { border-color: var(--red); color: var(--red); }
+  button.subtle { background: transparent; border-color: var(--line); }
+
+  /* Header */
+  header {
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, #131820, var(--bg));
+    position: sticky; top: 0; z-index: 50;
+  }
+  .hwrap {
+    max-width: 1400px; margin: 0 auto; padding: 14px 24px;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 18px;
+  }
+  .brand { font-weight: 700; font-size: 18px; letter-spacing: .3px; }
+  .brand .accent { color: var(--accent); }
+  .brand .sub { color: var(--fg-dim); font-weight: 400; font-size: 13px; margin-left: 8px; }
+  nav.tabs { display: flex; gap: 4px; margin-left: auto; }
+  nav.tabs button {
+    background: transparent; border: 1px solid transparent;
+    color: var(--fg-dim); padding: 6px 14px;
+  }
+  nav.tabs button.active { color: var(--fg); border-color: var(--line-2); background: var(--bg-2); }
+  nav.tabs button:hover { color: var(--fg); }
+
+  main {
+    max-width: 1400px; margin: 0 auto; padding: 24px;
+  }
+  .panel {
+    background: var(--bg-2); border: 1px solid var(--line);
+    border-radius: 10px; box-shadow: var(--shadow);
+  }
+  h1, h2, h3 { font-weight: 600; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 17px; margin: 0 0 12px; color: var(--fg); }
+  h3 { font-size: 14px; margin: 0 0 8px; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; }
+  p { margin: 0 0 10px; color: var(--fg-dim); }
+  p strong { color: var(--fg); }
+  ul { color: var(--fg-dim); padding-left: 18px; }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
+  .pill {
+    display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 99px;
+    background: var(--bg-3); color: var(--fg-dim); border: 1px solid var(--line-2);
+    text-transform: uppercase; letter-spacing: .8px;
+  }
+  .pill.green { color: var(--green); border-color: rgba(86,211,100,.35); background: rgba(86,211,100,.08); }
+  .pill.red   { color: var(--red);   border-color: rgba(248,81,73,.35);  background: rgba(248,81,73,.08); }
+  .pill.yellow{ color: var(--yellow);border-color: rgba(227,179,65,.35); background: rgba(227,179,65,.08); }
+  .pill.cyan  { color: var(--cyan);  border-color: rgba(118,227,227,.35);background: rgba(118,227,227,.08); }
+  .pill.pink  { color: var(--pink);  border-color: rgba(255,123,114,.35);background: rgba(255,123,114,.08); }
+  .pill.purple{ color: var(--accent-2); border-color: rgba(210,168,255,.35); background: rgba(210,168,255,.08); }
+
+  /* Tabs (content) */
+  .tab { display: none; }
+  .tab.active { display: block; animation: fadeIn .15s ease-out; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(4px);} to{opacity:1;transform:none;} }
+
+  /* === Simulator === */
+  .sim-toolbar {
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+    padding: 14px 18px; border-bottom: 1px solid var(--line);
+  }
+  .sim-toolbar label {
+    color: var(--fg-dim); display: inline-flex; align-items: center; gap: 6px; font-size: 13px;
+  }
+  .sim-toolbar input[type=range] { accent-color: var(--accent); }
+  .sim-toolbar .group { display: flex; gap: 6px; }
+  .sim-toolbar .spacer { flex: 1; }
+
+  .sim-stage {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 14px; padding: 18px;
+  }
+  @media (max-width: 1100px) { .sim-stage { grid-template-columns: 1fr 1fr; } }
+
+  .lane {
+    background: var(--bg-3); border: 1px solid var(--line);
+    border-radius: 8px; min-height: 380px; padding: 12px;
+    display: flex; flex-direction: column;
+  }
+  .lane h3 { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .lane h3 .count {
+    font-size: 11px; padding: 1px 8px; background: var(--bg-2); border-radius: 99px;
+    color: var(--fg-dim); border: 1px solid var(--line-2); letter-spacing: 0;
+  }
+  .lane .lane-hint { color: var(--fg-faint); font-size: 12px; margin-bottom: 8px; }
+  .lane .body {
+    display: flex; flex-direction: column; gap: 6px; overflow-y: auto;
+    flex: 1; padding-right: 4px;
+  }
+  .lane .body::-webkit-scrollbar { width: 6px; }
+  .lane .body::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 3px; }
+
+  /* Task chip */
+  .chip {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px; border-radius: 6px;
+    background: var(--bg-2); border: 1px solid var(--line);
+    font-size: 12px; animation: chipIn .25s ease-out;
+    transition: background .2s, border-color .2s, transform .2s;
+  }
+  .chip .swatch {
+    width: 8px; height: 8px; border-radius: 99px; flex-shrink: 0;
+    box-shadow: 0 0 8px currentColor;
+  }
+  .chip .name { font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chip .pri { color: var(--fg-dim); font-size: 11px; }
+  @keyframes chipIn { from{opacity:0;transform:scale(.85);} to{opacity:1;transform:none;} }
+
+  .chip.print   { color: var(--accent); }
+  .chip.compute { color: var(--accent-2); }
+  .chip.failing { color: var(--pink); }
+
+  .chip.completed { background: rgba(86,211,100,.06); border-color: rgba(86,211,100,.3); }
+  .chip.failed    { background: rgba(248,81,73,.06); border-color: rgba(248,81,73,.3); }
+
+  .worker-card {
+    background: var(--bg-2); border: 1px solid var(--line);
+    border-radius: 8px; padding: 10px; transition: border-color .2s, background .2s;
+  }
+  .worker-card.busy { border-color: var(--accent); background: rgba(121,192,255,.04); }
+  .worker-card .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .worker-card .head .id { font-weight: 600; }
+  .worker-card .status { font-size: 11px; color: var(--fg-dim); text-transform: uppercase; letter-spacing: .7px; }
+  .worker-card.busy .status { color: var(--accent); }
+  .worker-card .progress {
+    height: 4px; border-radius: 2px; background: var(--bg-3); overflow: hidden;
+    border: 1px solid var(--line); margin-top: 6px;
+  }
+  .worker-card .progress > div { height: 100%; background: var(--accent); transition: width .2s linear; }
+  .worker-card .current { font-size: 11px; color: var(--fg-dim); min-height: 16px; }
+  .worker-card .stats { font-size: 11px; color: var(--fg-faint); margin-top: 4px; }
+
+  .empty { color: var(--fg-faint); font-size: 12px; font-style: italic; padding: 8px 0; }
+
+  /* Producer */
+  .producer-buttons { display: grid; grid-template-columns: 1fr; gap: 6px; }
+  .producer-buttons button {
+    text-align: left; padding: 10px 12px; font-size: 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .producer-buttons button .label { flex: 1; }
+  .producer-buttons button .swatch {
+    width: 8px; height: 8px; border-radius: 99px; box-shadow: 0 0 8px currentColor;
+  }
+  .producer-buttons button.print   { color: var(--accent); }
+  .producer-buttons button.compute { color: var(--accent-2); }
+  .producer-buttons button.failing { color: var(--pink); }
+  .producer-buttons button.urgent  { border-color: var(--orange); color: var(--orange); }
+
+  /* Event log */
+  .log-panel {
+    margin-top: 14px; background: var(--bg-3); border: 1px solid var(--line);
+    border-radius: 8px; padding: 10px 12px; max-height: 160px; overflow: auto;
+  }
+  .log-panel h3 { margin: 0 0 6px; font-size: 11px; }
+  .log-line {
+    font-family: 'SF Mono','Menlo', monospace; font-size: 11.5px;
+    color: var(--fg-dim); padding: 1px 0; white-space: pre-wrap; word-break: break-word;
+  }
+  .log-line .ts { color: var(--fg-faint); margin-right: 8px; }
+  .log-line .w  { color: var(--accent); }
+  .log-line .ok { color: var(--green); }
+  .log-line .er { color: var(--red); }
+  .log-line .pri{ color: var(--orange); }
+
+  /* Concept page (OOP, Threading) */
+  .grid-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
+  .card { background: var(--bg-2); border: 1px solid var(--line); border-radius: 10px; padding: 18px; }
+  .card h2 { margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .card svg { display: block; max-width: 100%; }
+  .kbd { font-family: monospace; padding: 1px 6px; background: var(--bg-3); border: 1px solid var(--line-2); border-radius: 4px; font-size: 12px; color: var(--fg); }
+
+  pre.code {
+    background: #0a0d12; border: 1px solid var(--line); border-radius: 6px;
+    padding: 12px 14px; overflow: auto; font-size: 12.5px; line-height: 1.5;
+    margin: 8px 0;
+  }
+  pre.code .kw { color: #ff7b72; }
+  pre.code .ty { color: var(--accent-2); }
+  pre.code .st { color: #a5d6ff; }
+  pre.code .nm { color: #ffa657; }
+  pre.code .cm { color: #8b949e; font-style: italic; }
+  pre.code .pp { color: #79c0ff; }
+
+  /* Race condition demo */
+  .race-stage {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; align-items: start;
+  }
+  .race-thread {
+    background: var(--bg-3); border: 1px solid var(--line);
+    border-radius: 8px; padding: 10px; min-height: 160px;
+  }
+  .race-thread .step {
+    font-family: monospace; font-size: 11.5px; color: var(--fg-dim);
+    padding: 2px 4px; border-radius: 3px;
+  }
+  .race-thread .step.cur { background: rgba(121,192,255,.18); color: var(--fg); }
+  .race-counter {
+    font-size: 38px; font-weight: 700; text-align: center;
+    color: var(--accent); padding: 28px 0;
+  }
+  .race-counter.bad { color: var(--red); }
+  .race-counter.good { color: var(--green); }
+
+  /* Project map */
+  .map-svg {
+    background: var(--bg-3); border: 1px solid var(--line);
+    border-radius: 8px; padding: 14px;
+  }
+
+  /* Code tab */
+  .code-files { display: grid; grid-template-columns: 220px 1fr; gap: 14px; }
+  .code-list {
+    background: var(--bg-2); border: 1px solid var(--line);
+    border-radius: 8px; padding: 8px; height: fit-content;
+  }
+  .code-list button {
+    display: block; width: 100%; text-align: left;
+    background: transparent; border: 1px solid transparent; color: var(--fg-dim);
+    margin-bottom: 2px; font-family: monospace; font-size: 12.5px;
+  }
+  .code-list button.active { background: var(--bg-3); border-color: var(--line-2); color: var(--fg); }
+  .code-view {
+    background: var(--bg-2); border: 1px solid var(--line);
+    border-radius: 8px; padding: 0; overflow: hidden;
+  }
+  .code-view .crumb {
+    padding: 8px 14px; border-bottom: 1px solid var(--line);
+    font-family: monospace; font-size: 12px; color: var(--fg-dim);
+  }
+  .code-view pre { margin: 0; padding: 14px; max-height: 70vh; overflow: auto; font-size: 12.5px; line-height: 1.55; }
+
+  /* footer */
+  footer {
+    text-align: center; color: var(--fg-faint); font-size: 12px;
+    padding: 24px; border-top: 1px solid var(--line); margin-top: 24px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hwrap">
+    <div class="brand">Thread<span class="accent">Forge</span><span class="sub">visualizer · interview prep</span></div>
+    <nav class="tabs" id="tabs">
+      <button data-tab="sim" class="active">Live Simulator</button>
+      <button data-tab="oop">OOP Pillars</button>
+      <button data-tab="thr">Threading</button>
+      <button data-tab="map">Project Map</button>
+      <button data-tab="code">Code</button>
+      <button data-tab="cheat">Cheat Sheet</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+<!-- ======================== LIVE SIMULATOR ======================== -->
+<section class="tab active" id="tab-sim">
+  <div class="panel">
+    <div class="sim-toolbar">
+      <label>Workers <input type="range" id="ctlWorkers" min="1" max="8" value="4" /> <span id="ctlWorkersVal">4</span></label>
+      <label>Speed <input type="range" id="ctlSpeed" min="0.25" max="3" step="0.25" value="1" /> <span id="ctlSpeedVal">1.0×</span></label>
+      <label><input type="checkbox" id="ctlAuto" /> Auto-submit random tasks</label>
+      <div class="spacer"></div>
+      <div class="group">
+        <button id="btnReset" class="subtle">Reset</button>
+        <button id="btnPause" class="primary">Pause</button>
+      </div>
+    </div>
+
+    <div class="sim-stage">
+      <!-- Producer -->
+      <div class="lane">
+        <h3>Producer <span class="count" id="cntSubmitted">0 submitted</span></h3>
+        <div class="lane-hint">Click to submit a task. Higher priority cuts the line.</div>
+        <div class="producer-buttons" id="producer">
+          <button class="print"   data-type="print"   data-pri="0"><span class="swatch" style="background:#79c0ff"></span><span class="label">PrintTask · pri 0</span></button>
+          <button class="print urgent" data-type="print"   data-pri="10"><span class="swatch" style="background:#79c0ff"></span><span class="label">PrintTask · pri 10 (URGENT)</span></button>
+          <button class="compute" data-type="compute" data-pri="2"><span class="swatch" style="background:#d2a8ff"></span><span class="label">ComputeTask · pri 2</span></button>
+          <button class="compute urgent" data-type="compute" data-pri="8"><span class="swatch" style="background:#d2a8ff"></span><span class="label">ComputeTask · pri 8</span></button>
+          <button class="failing" data-type="failing" data-pri="5"><span class="swatch" style="background:#ff7b72"></span><span class="label">FailingTask · pri 5</span></button>
+          <button class="subtle"  data-type="burst"   data-pri="0"><span class="label">+ Burst (5 random)</span></button>
+        </div>
+      </div>
+
+      <!-- Queue -->
+      <div class="lane">
+        <h3>Priority Queue <span class="count" id="cntQueue">0 pending</span></h3>
+        <div class="lane-hint">Sorted by priority. Workers pop the top.</div>
+        <div class="body" id="queueList"></div>
+      </div>
+
+      <!-- Workers -->
+      <div class="lane">
+        <h3>Workers <span class="count" id="cntWorkers">0 busy</span></h3>
+        <div class="lane-hint">Each worker is one std::thread.</div>
+        <div class="body" id="workerList"></div>
+      </div>
+
+      <!-- Completed -->
+      <div class="lane">
+        <h3>Completed <span class="count" id="cntDone">0 done</span></h3>
+        <div class="lane-hint">Tasks come out — order is priority-driven, not FIFO.</div>
+        <div class="body" id="completedList"></div>
+      </div>
+    </div>
+
+    <div style="padding: 0 18px 18px;">
+      <div class="log-panel">
+        <h3>Event Log</h3>
+        <div id="logList"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top: 18px; padding: 18px;">
+    <h2>What you're seeing</h2>
+    <p>This simulator is the same architecture as the C++ project. Tasks are submitted to a <strong>priority queue</strong> protected by a <strong>mutex + condition variable</strong>. Each <strong>Worker</strong> is one <code>std::thread</code> that sleeps on the cv until a task arrives, pops the highest-priority one, calls <code>execute()</code>, and loops.</p>
+    <p>Try this: start a long ComputeTask running on every worker, then submit a <strong>pri 10 PrintTask</strong>. It can't preempt a running task — but it jumps to the front of the queue, so it runs the moment any worker finishes. That's exactly how the real <code>std::priority_queue</code>-backed thread pool behaves.</p>
+  </div>
+</section>
+
+
+<!-- ======================== OOP PILLARS ======================== -->
+<section class="tab" id="tab-oop">
+  <div class="grid-cards">
+
+    <div class="card">
+      <h2>Encapsulation <span class="pill cyan">hide data</span></h2>
+      <p><strong>What:</strong> Bundle data with the methods that operate on it. Outside code can't reach in and corrupt internal state.</p>
+      <p><strong>In ThreadForge:</strong> <code>Task::status_</code> is private and atomic. Outside callers can <em>read</em> via <code>getStatus()</code>; only the task itself can <em>transition</em> via the protected <code>markRunning/Completed/Failed()</code> helpers.</p>
+      <pre class="code" data-lang="cpp">
+<span class="kw">class</span> <span class="ty">Task</span> {
+<span class="kw">private:</span>
+    std::atomic&lt;<span class="ty">TaskStatus</span>&gt; status_;       <span class="cm">// hidden</span>
+<span class="kw">protected:</span>
+    <span class="kw">void</span> markRunning()   { status_.store(TaskStatus::Running); }
+<span class="kw">public:</span>
+    <span class="ty">TaskStatus</span> getStatus() <span class="kw">const</span> { <span class="kw">return</span> status_.load(); }
+};</pre>
+      <p><strong>Interview line:</strong> "The class owns its invariants — outside code can observe, but can't corrupt."</p>
+    </div>
+
+    <div class="card">
+      <h2>Abstraction <span class="pill purple">hide complexity</span></h2>
+      <p><strong>What:</strong> Expose what the class does, hide how. Callers code against an interface, not an implementation.</p>
+      <p><strong>In ThreadForge:</strong> <code>Task::execute()</code> is <em>pure virtual</em>. The <code>ThreadPool</code> calls <code>task-&gt;execute()</code> with no idea whether it's a print, a compute, or a failing task.</p>
+      <svg viewBox="0 0 360 140" width="100%" height="140" style="margin: 10px 0;">
+        <rect x="130" y="10"  width="100" height="34" rx="6" fill="#1f2630" stroke="#79c0ff"/>
+        <text x="180" y="32" text-anchor="middle" fill="#e6edf3" font-family="monospace" font-size="13">Task</text>
+        <line x1="180" y1="44" x2="180" y2="80" stroke="#3a4658"/>
+        <line x1="60" y1="80" x2="300" y2="80" stroke="#3a4658"/>
+        <line x1="60" y1="80" x2="60" y2="100" stroke="#3a4658"/>
+        <line x1="180" y1="80" x2="180" y2="100" stroke="#3a4658"/>
+        <line x1="300" y1="80" x2="300" y2="100" stroke="#3a4658"/>
+        <rect x="10"  y="100" width="100" height="32" rx="6" fill="#1f2630" stroke="#79c0ff"/>
+        <text x="60"  y="121" text-anchor="middle" fill="#79c0ff" font-family="monospace" font-size="12">PrintTask</text>
+        <rect x="130" y="100" width="100" height="32" rx="6" fill="#1f2630" stroke="#d2a8ff"/>
+        <text x="180" y="121" text-anchor="middle" fill="#d2a8ff" font-family="monospace" font-size="12">ComputeTask</text>
+        <rect x="250" y="100" width="100" height="32" rx="6" fill="#1f2630" stroke="#ff7b72"/>
+        <text x="300" y="121" text-anchor="middle" fill="#ff7b72" font-family="monospace" font-size="12">FailingTask</text>
+      </svg>
+      <p><strong>Distinction from encapsulation:</strong> Encapsulation hides <em>data</em>. Abstraction hides <em>complexity</em>.</p>
+    </div>
+
+    <div class="card">
+      <h2>Inheritance <span class="pill yellow">is-a</span></h2>
+      <p><strong>What:</strong> A derived class acquires the base's interface and behavior, then extends or overrides them.</p>
+      <pre class="code" data-lang="cpp">
+<span class="kw">class</span> <span class="ty">PrintTask</span> : <span class="kw">public</span> <span class="ty">Task</span> {       <span class="cm">// PrintTask IS-A Task</span>
+<span class="kw">public:</span>
+    PrintTask(std::string m) : Task(<span class="st">"PrintTask"</span>), msg_(std::move(m)) {}
+    <span class="kw">void</span> execute() <span class="kw">override</span> {              <span class="cm">// override catches typos</span>
+        markRunning();
+        std::cout &lt;&lt; msg_ &lt;&lt; <span class="st">"\n"</span>;
+        markCompleted();
+    }
+};</pre>
+      <p><strong>Watch out:</strong> Prefer <em>composition</em> over inheritance when the relationship is "has-a". Deep inheritance hierarchies become fragile.</p>
+    </div>
+
+    <div class="card">
+      <h2>Polymorphism <span class="pill pink">vtable</span></h2>
+      <p><strong>What:</strong> One interface, many forms. A base pointer or reference can point to any derived type, and the right method runs at runtime via the <em>vtable</em>.</p>
+      <pre class="code" data-lang="cpp">
+std::vector&lt;std::shared_ptr&lt;<span class="ty">Task</span>&gt;&gt; tasks;
+tasks.push_back(std::make_shared&lt;<span class="ty">PrintTask</span>&gt;(<span class="st">"hi"</span>));
+tasks.push_back(std::make_shared&lt;<span class="ty">ComputeTask</span>&gt;(<span class="nm">42</span>));
+
+<span class="kw">for</span> (<span class="kw">auto</span>&amp; t : tasks) {
+    t-&gt;execute();   <span class="cm">// correct execute() per type — runtime dispatch</span>
+}</pre>
+      <p><strong>vtable:</strong> A per-class table of function pointers. When you call a virtual function, the CPU looks up the pointer in the actual object's vtable. Cost: one extra indirection per virtual call.</p>
+    </div>
+
+    <div class="card">
+      <h2>SOLID, mapped to this project</h2>
+      <p><strong>S — Single Responsibility.</strong> Task = work definition. Queue = thread-safe storage. Worker = consume loop. Pool = lifecycle. Each class has one reason to change.</p>
+      <p><strong>O — Open/Closed.</strong> Add a <code>NetworkTask</code>, <code>DatabaseTask</code> — no changes to <code>Task.h</code>, <code>Worker.cpp</code>, or <code>ThreadPool.cpp</code>.</p>
+      <p><strong>L — Liskov Substitution.</strong> Any subclass passed as <code>Task*</code> must call <code>markRunning()</code> then exactly one of <code>markCompleted/Failed()</code>. Skipping these violates LSP.</p>
+      <p><strong>I — Interface Segregation.</strong> The base interface is just <code>execute()</code> + <code>describe()</code>. We don't force every task to implement <code>pause()</code>, <code>cancel()</code>, etc.</p>
+      <p><strong>D — Dependency Inversion.</strong> <code>ThreadPool</code> depends on the <code>Task</code> abstraction, not on any concrete subclass.</p>
+    </div>
+
+    <div class="card">
+      <h2>Common interview traps</h2>
+      <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+        <tr style="border-bottom: 1px solid var(--line);"><th align="left" style="padding: 6px 0;">Trap</th><th align="left">Right answer</th></tr>
+        <tr style="border-bottom: 1px solid var(--line);"><td style="padding:6px 0; color: var(--fg-dim);">Abstraction vs encapsulation?</td><td style="padding:6px 0;">Abstraction hides complexity. Encapsulation hides data.</td></tr>
+        <tr style="border-bottom: 1px solid var(--line);"><td style="padding:6px 0; color: var(--fg-dim);">Why virtual functions?</td><td style="padding:6px 0;">Runtime polymorphism: call the right method through a base pointer without knowing the concrete type.</td></tr>
+        <tr style="border-bottom: 1px solid var(--line);"><td style="padding:6px 0; color: var(--fg-dim);">What's a vtable?</td><td style="padding:6px 0;">Per-class table of function pointers; virtual calls go through it at runtime.</td></tr>
+        <tr><td style="padding:6px 0; color: var(--fg-dim);">When NOT to inherit?</td><td style="padding:6px 0;">When the relationship is "has-a". Prefer composition.</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+
+<!-- ======================== THREADING ======================== -->
+<section class="tab" id="tab-thr">
+  <div class="grid-cards">
+
+    <div class="card" style="grid-column: 1/-1;">
+      <h2>Race Condition Demo <span class="pill red">data race</span></h2>
+      <p>Two threads each increment <code>counter</code> 5 times. Without synchronization the load → add → store sequence isn't atomic, so increments get lost. Click <strong>Run unsafe</strong> a few times — you'll see the result jitter below 10. <strong>Run safe</strong> uses a mutex and always lands at 10.</p>
+      <div class="race-stage" style="margin-top: 14px;">
+        <div class="race-thread">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <strong style="color: var(--accent);">Thread A</strong>
+            <span class="pill" id="raceAStatus">idle</span>
+          </div>
+          <div id="raceAStep" class="step">— waiting —</div>
+        </div>
+        <div>
+          <div class="race-counter" id="raceCounter">0</div>
+          <div style="text-align: center; color: var(--fg-dim); font-size: 12px;" id="raceVerdict">expected: 10</div>
+        </div>
+        <div class="race-thread">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <strong style="color: var(--accent-2);">Thread B</strong>
+            <span class="pill" id="raceBStatus">idle</span>
+          </div>
+          <div id="raceBStep" class="step">— waiting —</div>
+        </div>
+      </div>
+      <div style="display:flex; gap: 8px; margin-top: 14px;">
+        <button class="danger" id="btnRaceUnsafe">Run unsafe (no mutex)</button>
+        <button class="primary" id="btnRaceSafe">Run safe (with mutex)</button>
+        <button class="subtle" id="btnRaceReset">Reset</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Mutexes &amp; RAII</h2>
+      <p>A mutex ensures only one thread enters a critical section. <strong>RAII</strong> ties lock lifetime to scope: <code>lock_guard</code> locks in its constructor and unlocks in its destructor — even if your code throws.</p>
+      <pre class="code" data-lang="cpp">
+{
+    std::lock_guard&lt;std::mutex&gt; lock(mtx);   <span class="cm">// locks here</span>
+    counter++;                               <span class="cm">// critical section</span>
+}                                            <span class="cm">// auto-unlocks here</span></pre>
+      <p><strong>lock_guard vs unique_lock:</strong> <code>lock_guard</code> is simple, can't be unlocked manually. <code>unique_lock</code> is needed for condition variables (it can hand off the lock during <code>cv.wait</code>).</p>
+    </div>
+
+    <div class="card">
+      <h2>Condition Variables</h2>
+      <p>A cv lets a thread sleep until another signals state has changed — instead of spinning the CPU. <em>Always</em> use a predicate; threads can wake spuriously.</p>
+      <pre class="code" data-lang="cpp">
+<span class="cm">// Consumer:</span>
+std::unique_lock&lt;std::mutex&gt; lk(mtx);
+cv.wait(lk, []{ <span class="kw">return</span> dataReady; });   <span class="cm">// re-checks predicate</span>
+process();
+
+<span class="cm">// Producer:</span>
+{
+    std::lock_guard&lt;std::mutex&gt; lk(mtx);
+    dataReady = <span class="kw">true</span>;
+}
+cv.notify_one();</pre>
+      <p>This is exactly what <code>ThreadSafeTaskQueue::wait_and_pop</code> does — sleep until queue non-empty <em>or</em> shutdown.</p>
+    </div>
+
+    <div class="card">
+      <h2>Deadlock <span class="pill red">circular wait</span></h2>
+      <p>Two threads, two locks, acquired in different orders → both wait forever.</p>
+      <svg viewBox="0 0 360 180" width="100%" height="180">
+        <rect x="20"  y="20" width="120" height="50" rx="6" fill="#1f2630" stroke="#79c0ff"/>
+        <text x="80"  y="50" text-anchor="middle" fill="#79c0ff" font-family="monospace" font-size="13">Thread A</text>
+        <rect x="220" y="20" width="120" height="50" rx="6" fill="#1f2630" stroke="#d2a8ff"/>
+        <text x="280" y="50" text-anchor="middle" fill="#d2a8ff" font-family="monospace" font-size="13">Thread B</text>
+        <rect x="20"  y="120" width="120" height="40" rx="6" fill="#1f2630" stroke="#3a4658"/>
+        <text x="80"  y="145" text-anchor="middle" fill="#9aa6b2" font-family="monospace" font-size="12">Lock 1</text>
+        <rect x="220" y="120" width="120" height="40" rx="6" fill="#1f2630" stroke="#3a4658"/>
+        <text x="280" y="145" text-anchor="middle" fill="#9aa6b2" font-family="monospace" font-size="12">Lock 2</text>
+        <line x1="80" y1="70"  x2="80" y2="120" stroke="#56d364" stroke-width="2"/>
+        <text x="60" y="98" fill="#56d364" font-size="11">holds</text>
+        <line x1="280" y1="70" x2="280" y2="120" stroke="#56d364" stroke-width="2"/>
+        <text x="290" y="98" fill="#56d364" font-size="11">holds</text>
+        <line x1="100" y1="65"  x2="240" y2="125" stroke="#f85149" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+        <line x1="260" y1="65"  x2="120" y2="125" stroke="#f85149" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+        <defs><marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#f85149"/></marker></defs>
+        <text x="180" y="105" text-anchor="middle" fill="#f85149" font-size="11">waits for</text>
+      </svg>
+      <p><strong>Prevent it:</strong> always acquire locks in the same order, or use <code>std::scoped_lock(m1, m2)</code> (C++17) which acquires multiple atomically.</p>
+    </div>
+
+    <div class="card">
+      <h2>std::atomic</h2>
+      <p>For single variables (counters, flags, status), <code>atomic</code> is faster than a mutex and lock-free for simple types.</p>
+      <pre class="code" data-lang="cpp">
+std::atomic&lt;<span class="kw">int</span>&gt; counter{<span class="nm">0</span>};
+counter++;            <span class="cm">// atomic fetch-and-add</span>
+counter.load();       <span class="cm">// atomic read</span></pre>
+      <p><strong>atomic vs mutex:</strong> atomic for one variable; mutex for blocks of code or multiple variables that must change together.</p>
+    </div>
+
+    <div class="card">
+      <h2>Producer-Consumer Pattern</h2>
+      <p>The pattern at the heart of ThreadForge — and most real systems (web servers, kernels, message brokers).</p>
+      <svg viewBox="0 0 360 100" width="100%" height="90">
+        <rect x="10"  y="30" width="80" height="40" rx="6" fill="#1f2630" stroke="#79c0ff"/>
+        <text x="50"  y="55" text-anchor="middle" fill="#79c0ff" font-family="monospace" font-size="11">Producer</text>
+        <rect x="135" y="30" width="90" height="40" rx="6" fill="#1f2630" stroke="#e3b341"/>
+        <text x="180" y="49" text-anchor="middle" fill="#e3b341" font-family="monospace" font-size="11">Queue</text>
+        <text x="180" y="63" text-anchor="middle" fill="#9aa6b2" font-family="monospace" font-size="9">mutex + cv</text>
+        <rect x="270" y="30" width="80" height="40" rx="6" fill="#1f2630" stroke="#56d364"/>
+        <text x="310" y="55" text-anchor="middle" fill="#56d364" font-family="monospace" font-size="11">Workers</text>
+        <line x1="90" y1="50" x2="135" y2="50" stroke="#9aa6b2" stroke-width="1.5" marker-end="url(#arr2)"/>
+        <line x1="225" y1="50" x2="270" y2="50" stroke="#9aa6b2" stroke-width="1.5" marker-end="url(#arr2)"/>
+        <defs><marker id="arr2" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#9aa6b2"/></marker></defs>
+      </svg>
+      <p>Producers push tasks. The queue's <strong>cv.notify</strong> wakes one waiter. The waiter pops and executes. Shutdown sets a flag and <strong>notify_all</strong> so waiters can exit.</p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ======================== PROJECT MAP ======================== -->
+<section class="tab" id="tab-map">
+  <div class="panel" style="padding: 18px;">
+    <h2>How the classes connect</h2>
+    <div class="map-svg">
+      <svg viewBox="0 0 880 460" width="100%" height="460">
+        <defs>
+          <marker id="map-arr" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#9aa6b2"/></marker>
+          <marker id="map-tri" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto"><path d="M0,0 L14,7 L0,14 z" fill="none" stroke="#9aa6b2" stroke-width="1.5"/></marker>
+        </defs>
+
+        <!-- ThreadPool -->
+        <rect x="320" y="20" width="220" height="80" rx="8" fill="#1f2630" stroke="#79c0ff" stroke-width="2"/>
+        <text x="430" y="42" text-anchor="middle" fill="#79c0ff" font-family="monospace" font-size="14">ThreadPool</text>
+        <text x="430" y="62" text-anchor="middle" fill="#9aa6b2" font-family="monospace" font-size="11">submit() · shutdown()</text>
+        <text x="430" y="80" text-anchor="middle" fill="#6b7785" font-family="monospace" font-size="10">owns workers + queue</text>
+
+        <!-- Queue -->
+        <rect x="60" y="160" width="220" height="80" rx="8" fill="#1f2630" stroke="#e3b341" stroke-width="2"/>
+        <text x="170" y="182" text-anchor="middle" fill="#e3b341" font-family="monospace" font-size="14">ThreadSafeTaskQueue</text>
+        <text x="170" y="202" text-anchor="middle" fill="#9aa6b2" font-family="monospace" font-size="11">push() · wait_and_pop()</text>
+        <text x="170" y="220" text-anchor="middle" fill="#6b7785" font-family="monospace" font-size="10">priority_queue + mutex + cv</text>
+
+        <!-- Workers -->
+        <rect x="600" y="160" width="220" height="80" rx="8" fill="#1f2630" stroke="#56d364" stroke-width="2"/>
+        <text x="710" y="182" text-anchor="middle" fill="#56d364" font-family="monospace" font-size="14">Worker[N]</text>
+        <text x="710" y="202" text-anchor="middle" fill="#9aa6b2" font-family="monospace" font-size="11">loop() — pop, execute</text>
+        <text x="710" y="220" text-anchor="middle" fill="#6b7785" font-family="monospace" font-size="10">one std::thread each</text>
+
+        <!-- Task -->
+        <rect x="320" y="320" width="220" height="60" rx="8" fill="#1f2630" stroke="#d2a8ff" stroke-width="2"/>
+        <text x="430" y="345" text-anchor="middle" fill="#d2a8ff" font-family="monospace" font-size="14">Task (abstract)</text>
+        <text x="430" y="365" text-anchor="middle" fill="#9aa6b2" font-family="monospace" font-size="11">virtual execute() = 0</text>
+
+        <!-- Concrete tasks -->
+        <rect x="60" y="400" width="160" height="42" rx="6" fill="#1f2630" stroke="#79c0ff"/>
+        <text x="140" y="426" text-anchor="middle" fill="#79c0ff" font-family="monospace" font-size="12">PrintTask</text>
+        <rect x="280" y="400" width="160" height="42" rx="6" fill="#1f2630" stroke="#d2a8ff"/>
+        <text x="360" y="426" text-anchor="middle" fill="#d2a8ff" font-family="monospace" font-size="12">ComputeTask</text>
+        <rect x="500" y="400" width="160" height="42" rx="6" fill="#1f2630" stroke="#ff7b72"/>
+        <text x="580" y="426" text-anchor="middle" fill="#ff7b72" font-family="monospace" font-size="12">FailingTask</text>
+
+        <!-- Arrows: Pool → Queue (owns), Pool → Workers (owns) -->
+        <line x1="350" y1="100" x2="180" y2="160" stroke="#9aa6b2" stroke-width="1.5" marker-end="url(#map-arr)"/>
+        <text x="220" y="135" fill="#9aa6b2" font-size="11" font-family="monospace">owns</text>
+        <line x1="510" y1="100" x2="690" y2="160" stroke="#9aa6b2" stroke-width="1.5" marker-end="url(#map-arr)"/>
+        <text x="610" y="135" fill="#9aa6b2" font-size="11" font-family="monospace">owns</text>
+
+        <!-- Workers ←→ Queue (workers reference queue, pull tasks) -->
+        <line x1="600" y1="200" x2="280" y2="200" stroke="#56d364" stroke-width="1.5" marker-end="url(#map-arr)"/>
+        <text x="430" y="195" text-anchor="middle" fill="#56d364" font-size="11" font-family="monospace">wait_and_pop()</text>
+
+        <!-- Pool → Task (uses) -->
+        <line x1="430" y1="100" x2="430" y2="320" stroke="#9aa6b2" stroke-width="1.2" stroke-dasharray="5 4"/>
+        <text x="438" y="220" fill="#9aa6b2" font-size="11" font-family="monospace">submit(shared_ptr&lt;Task&gt;)</text>
+
+        <!-- Inheritance triangles to Task -->
+        <line x1="140" y1="400" x2="380" y2="380" stroke="#9aa6b2" stroke-width="1.5" marker-end="url(#map-tri)"/>
+        <line x1="360" y1="400" x2="430" y2="380" stroke="#9aa6b2" stroke-width="1.5" marker-end="url(#map-tri)"/>
+        <line x1="580" y1="400" x2="480" y2="380" stroke="#9aa6b2" stroke-width="1.5" marker-end="url(#map-tri)"/>
+      </svg>
+    </div>
+
+    <div style="margin-top: 18px;">
+      <h2>Reading the diagram</h2>
+      <ul>
+        <li><strong>Solid arrow</strong> = ownership (composition). The pool owns its queue and workers; their lifetime ends when the pool destructs.</li>
+        <li><strong>Open triangle</strong> = inheritance (is-a). PrintTask, ComputeTask, FailingTask are all <code>Task</code>s.</li>
+        <li><strong>Dashed line</strong> = uses / depends on. The pool uses <code>shared_ptr&lt;Task&gt;</code> as its public API surface.</li>
+        <li><strong>Green arrow</strong> = the consume edge. Each worker thread calls <code>queue.wait_and_pop()</code> in a loop.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+
+<!-- ======================== CODE ======================== -->
+<section class="tab" id="tab-code">
+  <div class="panel" style="padding: 18px;">
+    <h2>Source files</h2>
+    <p>Same code that's on disk — copy/paste-ready for an interview whiteboarding session.</p>
+    <div class="code-files">
+      <div class="code-list" id="codeList"></div>
+      <div class="code-view">
+        <div class="crumb" id="codeCrumb">—</div>
+        <pre class="code" id="codeBody"></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ======================== CHEAT SHEET ======================== -->
+<section class="tab" id="tab-cheat">
+  <div class="grid-cards">
+    <div class="card">
+      <h2>One-liners (memorize these)</h2>
+      <ul style="list-style: none; padding: 0; margin: 0;">
+        <li style="padding: 8px 0; border-bottom: 1px solid var(--line);"><strong>Race condition:</strong> two threads access shared data without synchronization, at least one writes.</li>
+        <li style="padding: 8px 0; border-bottom: 1px solid var(--line);"><strong>Mutex:</strong> ensures only one thread enters the critical section.</li>
+        <li style="padding: 8px 0; border-bottom: 1px solid var(--line);"><strong>Deadlock:</strong> two threads each waiting on a lock the other holds.</li>
+        <li style="padding: 8px 0; border-bottom: 1px solid var(--line);"><strong>Condition variable:</strong> sleeps a thread until another signals state changed.</li>
+        <li style="padding: 8px 0; border-bottom: 1px solid var(--line);"><strong>Spurious wakeup:</strong> waking from cv.wait without notify — always use a predicate.</li>
+        <li style="padding: 8px 0; border-bottom: 1px solid var(--line);"><strong>RAII:</strong> tie resource lifetime to object lifetime — cleanup is automatic, even on exception.</li>
+        <li style="padding: 8px 0; border-bottom: 1px solid var(--line);"><strong>atomic:</strong> single-variable thread safety without a mutex.</li>
+        <li style="padding: 8px 0;"><strong>Thread pool:</strong> fixed reusable workers, avoids spawn/destroy overhead per task.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>C++ specifics they'll probe</h2>
+      <ul style="padding: 0; list-style: none; margin: 0;">
+        <li style="padding:6px 0;"><strong>Pointer vs reference:</strong> a reference must bind on creation and can't rebind; a pointer can be null and reassigned. Use references when "must point to something"; pointers when "may not, or may change".</li>
+        <li style="padding:6px 0;"><strong>unique_ptr vs shared_ptr:</strong> unique = sole ownership, move-only, zero overhead. shared = reference-counted, atomic refcount, bigger and slightly slower.</li>
+        <li style="padding:6px 0;"><strong>Rule of 3 / 5 / 0:</strong> if you define one of (dtor, copy ctor, copy assign), define all 3. With move ops, 5. Better: design your class so RAII members handle everything → rule of 0.</li>
+        <li style="padding:6px 0;"><strong>Virtual destructor:</strong> required on any base class deleted through a base pointer. Without it, derived destructors don't run → leaks.</li>
+        <li style="padding:6px 0;"><strong>Move semantics:</strong> <code>std::move</code> doesn't move — it casts to rvalue so a move ctor / move assignment can take ownership of resources.</li>
+        <li style="padding:6px 0;"><strong>const correctness:</strong> a <code>const</code> member function promises not to modify the object. Declare every getter <code>const</code>.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>Linux fundamentals</h2>
+      <ul>
+        <li><strong>Process vs thread:</strong> process owns the address space; threads share it within a process.</li>
+        <li><strong>fork vs exec:</strong> fork duplicates the process, exec replaces the program image. Shells do fork + exec for every command.</li>
+        <li><strong>Signals:</strong> async notifications. SIGTERM = polite stop, SIGKILL = uncatchable, SIGSEGV = invalid memory access.</li>
+        <li><strong>gdb:</strong> <code>gdb ./binary</code>, <code>run</code>, on crash <code>bt</code> for backtrace, <code>frame N</code>, <code>print var</code>.</li>
+        <li><strong>valgrind:</strong> <code>valgrind --leak-check=full ./binary</code> finds leaks and use-after-free.</li>
+        <li><strong>strace / ltrace:</strong> trace syscalls / library calls of a running process.</li>
+        <li><strong>top / htop / perf:</strong> CPU and memory at a glance; perf for hardware counters.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>Real-time systems concepts</h2>
+      <ul>
+        <li><strong>Hard real-time:</strong> missing a deadline = system failure. Hard RT systems use deterministic scheduling and avoid heap allocation in the hot path.</li>
+        <li><strong>Soft real-time:</strong> missing a deadline degrades quality but isn't catastrophic (video playback).</li>
+        <li><strong>Jitter:</strong> variation in timing of a periodic event. Hard RT minimizes jitter.</li>
+        <li><strong>Priority inversion:</strong> a low-priority thread holds a lock a high-priority thread needs. Solved by priority inheritance protocols.</li>
+        <li><strong>Lock-free:</strong> guaranteed at least one thread makes progress (CAS-based queues, atomics).</li>
+        <li><strong>Bounded execution:</strong> every code path has a known max runtime — no unbounded loops, no waiting on the network in the deadline path.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>Debugging a segfault (from scratch)</h2>
+      <ol style="color: var(--fg-dim); padding-left: 18px;">
+        <li>Compile with <code>-g -O0 -fsanitize=address,undefined</code>.</li>
+        <li>Run under gdb: <code>gdb ./bin</code> then <code>run</code>.</li>
+        <li>On crash: <code>bt</code> (backtrace), <code>frame N</code> to inspect a level, <code>print var</code> to see values.</li>
+        <li>Check the obvious: dereferencing a null/dangling pointer, out-of-bounds array access, double-free, use-after-free.</li>
+        <li>If multithreaded: rerun with <code>-fsanitize=thread</code> to surface data races.</li>
+        <li>If sporadic: log + reproduce minimally, then attach gdb again with a watchpoint on the corrupted variable.</li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h2>"Why defense / why Raytheon"</h2>
+      <p>Don't wing this one. A genuine answer beats a polished one. Things that ring true to Raytheon recruiters:</p>
+      <ul>
+        <li>You want your code to <strong>matter</strong> — mission-critical systems where bugs cost more than a re-deploy.</li>
+        <li>You're drawn to <strong>hardware-software integration</strong> after seeing it at NASA, and EOIR (Electro-Optical/Infrared) is a deeper version of the same story.</li>
+        <li>You like working on <strong>onsite, focused, no-distractions</strong> teams — the ExxonMobil / NASA pattern, not the open-source Slack scrum pattern.</li>
+        <li>You're a U.S. citizen ready to clear and stay long-term — defense rewards continuity.</li>
+      </ul>
+      <p style="color: var(--fg-faint); font-size: 12px;">Avoid: "I just want a job" energy, vague "cutting edge" lines, anything that sounds like every other resume.</p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Open <code>viz/index.html</code> in any browser · no server, no internet · the C++ project in the same repo is the reference implementation.
+</footer>
+
+<script>
+/* =========================================================================
+ * Tab navigation
+ * ========================================================================= */
+const tabBar = document.getElementById('tabs');
+tabBar.addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-tab]');
+  if (!btn) return;
+  const id = btn.dataset.tab;
+  tabBar.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.id === 'tab-' + id));
+});
+
+
+/* =========================================================================
+ * Live Simulator
+ *  - state.queue   : tasks waiting (priority sorted on render)
+ *  - state.workers : N worker objects with progress + currentTask
+ *  - state.done    : finished tasks (cap to most recent)
+ *  - tick()        : every ~100ms scaled by speed; advances workers,
+ *                    starts idle workers on the highest-priority task.
+ * ========================================================================= */
+const TASK_TYPES = {
+  print:   { color: '#79c0ff', name: 'PrintTask',   labels: ['log line', 'heartbeat', 'metric flush', 'config reload', 'URGENT log line', 'ALSO URGENT'] },
+  compute: { color: '#d2a8ff', name: 'ComputeTask', labels: ['sum 1..1M', 'sort 100k', 'matmul 64x64', 'parse JSON 5k', 'hash 1MB'] },
+  failing: { color: '#ff7b72', name: 'FailingTask', labels: ['simulated failure', 'bad input', 'oom mock'] },
+};
+
+let nextId = 1;
+const state = {
+  queue: [],
+  workers: [],
+  done: [],
+  events: [],
+  submitted: 0,
+  paused: false,
+  speed: 1,
+  workerCount: 4,
+  auto: false,
+};
+
+function makeTask(type, priority, label) {
+  const meta = TASK_TYPES[type];
+  const t = {
+    id: nextId++,
+    type,
+    priority,
+    color: meta.color,
+    name: meta.name,
+    label: label || meta.labels[Math.floor(Math.random() * meta.labels.length)],
+    duration: type === 'compute' ? 1.2 + Math.random() * 1.2 : 0.6 + Math.random() * 0.4,
+    status: 'pending',
+  };
+  if (type === 'failing') t.duration = 0.5;
+  return t;
+}
+
+function setupWorkers(n) {
+  state.workers = Array.from({ length: n }, (_, i) => ({
+    id: i,
+    busy: false,
+    currentTask: null,
+    progress: 0,
+    totalDone: 0,
+  }));
+}
+
+function logEvent(parts) {
+  // parts: array of {text, cls?}
+  const ts = new Date().toLocaleTimeString([], { hour12: false });
+  state.events.unshift({ ts, parts });
+  if (state.events.length > 80) state.events.length = 80;
+}
+
+function submit(type, priority, label) {
+  const t = makeTask(type, priority, label);
+  state.queue.push(t);
+  state.submitted++;
+  logEvent([
+    { text: 'submit ' },
+    { text: t.name, cls: 'pri' },
+    { text: ' "' + t.label + '" pri=' + priority },
+  ]);
+  render();
+}
+
+function tick(dt) {
+  // dt in seconds (real time × speed)
+  // 1. Advance busy workers
+  for (const w of state.workers) {
+    if (w.busy && w.currentTask) {
+      w.progress += dt / w.currentTask.duration;
+      if (w.progress >= 1) {
+        const finished = w.currentTask;
+        finished.status = finished.type === 'failing' ? 'failed' : 'completed';
+        finished.finishedAt = Date.now();
+        state.done.unshift(finished);
+        if (state.done.length > 30) state.done.length = 30;
+        w.busy = false;
+        w.currentTask = null;
+        w.progress = 0;
+        w.totalDone++;
+        logEvent([
+          { text: 'worker ' },
+          { text: '#' + w.id, cls: 'w' },
+          { text: ' finished ' },
+          { text: finished.name + ' "' + finished.label + '"', cls: finished.status === 'failed' ? 'er' : 'ok' },
+        ]);
+      }
+    }
+  }
+  // 2. Idle workers grab highest-priority task
+  // Sort queue desc by priority (ties broken FIFO by id)
+  state.queue.sort((a, b) => (b.priority - a.priority) || (a.id - b.id));
+  for (const w of state.workers) {
+    if (!w.busy && state.queue.length > 0) {
+      const t = state.queue.shift();
+      t.status = 'running';
+      w.busy = true;
+      w.currentTask = t;
+      w.progress = 0;
+      logEvent([
+        { text: 'worker ' },
+        { text: '#' + w.id, cls: 'w' },
+        { text: ' picked up ' },
+        { text: t.name + ' "' + t.label + '"', cls: 'pri' },
+      ]);
+    }
+  }
+}
+
+let lastFrame = performance.now();
+let autoAcc = 0;
+function loop(now) {
+  const dtReal = (now - lastFrame) / 1000;
+  lastFrame = now;
+  if (!state.paused) {
+    tick(dtReal * state.speed);
+    if (state.auto) {
+      autoAcc += dtReal * state.speed;
+      while (autoAcc > 0.4) {
+        autoAcc -= 0.4;
+        const types = Object.keys(TASK_TYPES);
+        const t = types[Math.floor(Math.random() * types.length)];
+        const pri = Math.floor(Math.random() * 11);
+        submit(t, pri);
+      }
+    }
+  }
+  render();
+  requestAnimationFrame(loop);
+}
+
+/* ------- rendering ------- */
+const $queue = document.getElementById('queueList');
+const $workers = document.getElementById('workerList');
+const $done = document.getElementById('completedList');
+const $log = document.getElementById('logList');
+const $cntQueue = document.getElementById('cntQueue');
+const $cntWorkers = document.getElementById('cntWorkers');
+const $cntDone = document.getElementById('cntDone');
+const $cntSubmitted = document.getElementById('cntSubmitted');
+
+function chipHTML(t, klass) {
+  return `<div class="chip ${t.type} ${klass||''}">
+    <span class="swatch" style="background:${t.color};color:${t.color}"></span>
+    <span class="name">${t.name}: ${escapeHTML(t.label)}</span>
+    <span class="pri">pri ${t.priority}</span>
+  </div>`;
+}
+
+function escapeHTML(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function render() {
+  // Queue (sorted view)
+  const sorted = [...state.queue].sort((a,b) => (b.priority - a.priority) || (a.id - b.id));
+  $queue.innerHTML = sorted.length
+    ? sorted.map(t => chipHTML(t)).join('')
+    : '<div class="empty">— empty —</div>';
+  $cntQueue.textContent = `${state.queue.length} pending`;
+
+  // Workers
+  $workers.innerHTML = state.workers.map(w => {
+    const cur = w.currentTask;
+    return `<div class="worker-card ${w.busy?'busy':''}">
+      <div class="head">
+        <span class="id">Worker #${w.id}</span>
+        <span class="status">${w.busy?'running':'idle'}</span>
+      </div>
+      <div class="current">${cur ? escapeHTML(cur.name + ': ' + cur.label + ' (pri ' + cur.priority + ')') : '— waiting on cv —'}</div>
+      <div class="progress"><div style="width:${Math.min(100,w.progress*100).toFixed(0)}%; background:${cur?cur.color:'#3a4658'}"></div></div>
+      <div class="stats">tasks done: ${w.totalDone}</div>
+    </div>`;
+  }).join('');
+  const busyCount = state.workers.filter(w => w.busy).length;
+  $cntWorkers.textContent = `${busyCount}/${state.workers.length} busy`;
+
+  // Completed
+  $done.innerHTML = state.done.length
+    ? state.done.map(t => chipHTML(t, t.status === 'failed' ? 'failed' : 'completed')).join('')
+    : '<div class="empty">— nothing yet —</div>';
+  $cntDone.textContent = `${state.done.length} done`;
+
+  $cntSubmitted.textContent = `${state.submitted} submitted`;
+
+  // Log
+  $log.innerHTML = state.events.slice(0, 40).map(e =>
+    `<div class="log-line"><span class="ts">${e.ts}</span>${e.parts.map(p => `<span class="${p.cls||''}">${escapeHTML(p.text)}</span>`).join('')}</div>`
+  ).join('');
+}
+
+/* ------- wiring ------- */
+document.getElementById('producer').addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  const type = btn.dataset.type;
+  const pri = parseInt(btn.dataset.pri, 10);
+  if (type === 'burst') {
+    const types = Object.keys(TASK_TYPES);
+    for (let i = 0; i < 5; i++) {
+      const t = types[Math.floor(Math.random() * types.length)];
+      submit(t, Math.floor(Math.random() * 11));
+    }
+  } else {
+    submit(type, pri);
+  }
+});
+
+document.getElementById('ctlWorkers').addEventListener('input', (e) => {
+  const n = parseInt(e.target.value, 10);
+  document.getElementById('ctlWorkersVal').textContent = n;
+  state.workerCount = n;
+  // Resize: keep busy workers; add or trim
+  if (state.workers.length < n) {
+    while (state.workers.length < n) {
+      state.workers.push({ id: state.workers.length, busy: false, currentTask: null, progress: 0, totalDone: 0 });
+    }
+  } else {
+    // trim from the tail; if a worker being trimmed is busy, return its task to the queue
+    while (state.workers.length > n) {
+      const w = state.workers.pop();
+      if (w.currentTask) state.queue.push(w.currentTask);
+    }
+  }
+  render();
+});
+
+document.getElementById('ctlSpeed').addEventListener('input', (e) => {
+  state.speed = parseFloat(e.target.value);
+  document.getElementById('ctlSpeedVal').textContent = state.speed.toFixed(2) + '×';
+});
+document.getElementById('ctlAuto').addEventListener('change', (e) => {
+  state.auto = e.target.checked;
+});
+document.getElementById('btnPause').addEventListener('click', (e) => {
+  state.paused = !state.paused;
+  e.target.textContent = state.paused ? 'Resume' : 'Pause';
+  e.target.classList.toggle('primary', !state.paused);
+});
+document.getElementById('btnReset').addEventListener('click', () => {
+  state.queue.length = 0;
+  state.done.length = 0;
+  state.events.length = 0;
+  state.submitted = 0;
+  setupWorkers(state.workerCount);
+  render();
+});
+
+// init
+setupWorkers(4);
+render();
+requestAnimationFrame((t) => { lastFrame = t; loop(t); });
+
+
+/* =========================================================================
+ * Race condition demo
+ *  - Run unsafe: each thread alternates load/add/store; we randomly
+ *    interleave. Increments can be lost if both threads load before either
+ *    stores.
+ *  - Run safe: enter critical section atomically — no interleave possible.
+ * ========================================================================= */
+const $raceCounter = document.getElementById('raceCounter');
+const $raceVerdict = document.getElementById('raceVerdict');
+const $raceA = document.getElementById('raceAStep');
+const $raceB = document.getElementById('raceBStep');
+const $raceAS = document.getElementById('raceAStatus');
+const $raceBS = document.getElementById('raceBStatus');
+
+let raceCounter = 0;
+const ITERS = 5;
+
+function setRaceCounter(v, verdict) {
+  raceCounter = v;
+  $raceCounter.textContent = v;
+  $raceCounter.classList.toggle('bad', verdict === 'bad');
+  $raceCounter.classList.toggle('good', verdict === 'good');
+}
+function resetRace() {
+  setRaceCounter(0);
+  $raceA.textContent = '— waiting —';
+  $raceB.textContent = '— waiting —';
+  $raceAS.textContent = 'idle'; $raceAS.className = 'pill';
+  $raceBS.textContent = 'idle'; $raceBS.className = 'pill';
+  $raceVerdict.textContent = 'expected: 10';
+  $raceCounter.classList.remove('bad','good');
+}
+
+document.getElementById('btnRaceReset').addEventListener('click', resetRace);
+
+document.getElementById('btnRaceUnsafe').addEventListener('click', async () => {
+  resetRace();
+  // Each thread has 5 iterations of: load, +1, store
+  // Build a non-atomic interleaving where each "thread" tracks its own register.
+  let counter = 0;
+  let regA = 0, regB = 0;
+  const aLeft = ITERS, bLeft = ITERS;
+  let aDone = 0, bDone = 0;
+  $raceAS.textContent = 'running'; $raceAS.className = 'pill yellow';
+  $raceBS.textContent = 'running'; $raceBS.className = 'pill yellow';
+
+  while (aDone < ITERS || bDone < ITERS) {
+    const choices = [];
+    if (aDone < ITERS) choices.push('A');
+    if (bDone < ITERS) choices.push('B');
+    const who = choices[Math.floor(Math.random() * choices.length)];
+    if (who === 'A') {
+      regA = counter;                 await sleep(70); $raceA.textContent = `loaded counter (${regA}) into reg`; $raceA.className = 'step cur';
+      regA = regA + 1;                await sleep(70); $raceA.textContent = `reg = reg + 1  (${regA})`;
+      counter = regA;                 await sleep(70); $raceA.textContent = `stored ${counter} → counter`;
+      setRaceCounter(counter);
+      aDone++;
+    } else {
+      regB = counter;                 await sleep(70); $raceB.textContent = `loaded counter (${regB}) into reg`; $raceB.className = 'step cur';
+      regB = regB + 1;                await sleep(70); $raceB.textContent = `reg = reg + 1  (${regB})`;
+      counter = regB;                 await sleep(70); $raceB.textContent = `stored ${counter} → counter`;
+      setRaceCounter(counter);
+      bDone++;
+    }
+  }
+  $raceAS.textContent = 'done'; $raceAS.className = 'pill';
+  $raceBS.textContent = 'done'; $raceBS.className = 'pill';
+  if (counter < 10) {
+    $raceVerdict.textContent = `LOST INCREMENTS — got ${counter}, wanted 10`;
+    setRaceCounter(counter, 'bad');
+  } else {
+    $raceVerdict.textContent = `lucky run — got ${counter} (try again, races are not deterministic)`;
+    setRaceCounter(counter, 'good');
+  }
+});
+
+document.getElementById('btnRaceSafe').addEventListener('click', async () => {
+  resetRace();
+  let counter = 0;
+  let aDone = 0, bDone = 0;
+  $raceAS.textContent = 'running'; $raceAS.className = 'pill yellow';
+  $raceBS.textContent = 'running'; $raceBS.className = 'pill yellow';
+  while (aDone < ITERS || bDone < ITERS) {
+    const choices = [];
+    if (aDone < ITERS) choices.push('A');
+    if (bDone < ITERS) choices.push('B');
+    const who = choices[Math.floor(Math.random() * choices.length)];
+    const $step = who === 'A' ? $raceA : $raceB;
+    const $stat = who === 'A' ? $raceAS : $raceBS;
+    $stat.textContent = 'has lock'; $stat.className = 'pill green';
+    $step.textContent = 'lock_guard locked mtx'; $step.className = 'step cur';
+    await sleep(80);
+    let r = counter;
+    $step.textContent = `loaded ${r}, +1`;
+    await sleep(80);
+    counter = r + 1;
+    setRaceCounter(counter);
+    $step.textContent = `stored ${counter}, scope exit unlocks`;
+    await sleep(80);
+    $stat.textContent = 'released'; $stat.className = 'pill';
+    if (who === 'A') aDone++; else bDone++;
+  }
+  $raceAS.textContent = 'done'; $raceAS.className = 'pill';
+  $raceBS.textContent = 'done'; $raceBS.className = 'pill';
+  setRaceCounter(counter, 'good');
+  $raceVerdict.textContent = `correct — got ${counter} (every increment was atomic)`;
+});
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+
+/* =========================================================================
+ * Code viewer with tiny C++ syntax highlighter
+ * ========================================================================= */
+const FILES = {
+  'include/Task.h': String.raw`#pragma once
+
+#include <string>
+#include <chrono>
+#include <atomic>
+
+// Lifecycle of a task through the scheduler
+enum class TaskStatus {
+    Pending,
+    Running,
+    Completed,
+    Failed
+};
+
+// Abstract base class for all units of work the scheduler can run.
+// Derive from this and implement execute() to create a concrete task.
+class Task {
+public:
+    explicit Task(std::string name, int priority = 0);
+    virtual ~Task() = default;
+
+    // The work this task performs. Must be implemented by derived classes.
+    // Should be safe to call from any thread.
+    virtual void execute() = 0;
+
+    // Human-readable description for logging — optional override
+    virtual std::string describe() const;
+
+    std::string     getName()     const { return name_; }
+    int             getPriority() const { return priority_; }
+    TaskStatus      getStatus()   const { return status_.load(); }
+    std::chrono::steady_clock::time_point getCreatedAt() const { return createdAt_; }
+
+protected:
+    void markRunning()   { status_.store(TaskStatus::Running); }
+    void markCompleted() { status_.store(TaskStatus::Completed); }
+    void markFailed()    { status_.store(TaskStatus::Failed); }
+
+private:
+    std::string   name_;
+    int           priority_;
+    std::atomic<TaskStatus> status_;
+    std::chrono::steady_clock::time_point createdAt_;
+
+    // Non-copyable — tasks have identity
+    Task(const Task&)            = delete;
+    Task& operator=(const Task&) = delete;
+};`,
+  'include/Tasks.h': String.raw`#pragma once
+
+#include "Task.h"
+#include <chrono>
+#include <iostream>
+#include <stdexcept>
+#include <string>
+#include <thread>
+
+class PrintTask : public Task {
+public:
+    explicit PrintTask(std::string msg, int priority = 0)
+        : Task("PrintTask", priority)
+        , msg_(std::move(msg))
+    {}
+
+    void execute() override {
+        markRunning();
+        std::cout << "[PrintTask] " << msg_ << "\n";
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        markCompleted();
+    }
+
+    std::string describe() const override {
+        return "[PrintTask: \"" + msg_ + "\"]";
+    }
+
+private:
+    std::string msg_;
+};
+
+class ComputeTask : public Task {
+public:
+    explicit ComputeTask(int n, int priority = 0)
+        : Task("ComputeTask", priority), n_(n) {}
+
+    void execute() override {
+        markRunning();
+        long long sum = 0;
+        for (int i = 1; i <= n_; ++i) sum += i;
+        std::cout << "[ComputeTask] sum(1.." << n_ << ") = " << sum << "\n";
+        markCompleted();
+    }
+
+private:
+    int n_;
+};
+
+class FailingTask : public Task {
+public:
+    explicit FailingTask(int priority = 0) : Task("FailingTask", priority) {}
+
+    void execute() override {
+        markRunning();
+        try {
+            throw std::runtime_error("simulated failure");
+        } catch (const std::exception& e) {
+            std::cerr << "[FailingTask] caught: " << e.what() << "\n";
+            markFailed();
+        }
+    }
+};`,
+  'include/ThreadSafeQueue.h': String.raw`#pragma once
+
+// Generic FIFO thread-safe queue. The pool itself uses the priority
+// variant — this template is here as a reference for the producer-
+// consumer pattern.
+
+#include <condition_variable>
+#include <mutex>
+#include <queue>
+#include <utility>
+
+template <typename T>
+class ThreadSafeQueue {
+public:
+    void push(T value) {
+        {
+            std::lock_guard<std::mutex> lock(mtx_);
+            queue_.push(std::move(value));
+        }
+        cv_.notify_one();
+    }
+
+    bool wait_and_pop(T& out) {
+        std::unique_lock<std::mutex> lock(mtx_);
+        cv_.wait(lock, [this] { return !queue_.empty() || shutdown_; });
+        if (queue_.empty()) return false;
+        out = std::move(queue_.front());
+        queue_.pop();
+        return true;
+    }
+
+    void shutdown() {
+        {
+            std::lock_guard<std::mutex> lock(mtx_);
+            shutdown_ = true;
+        }
+        cv_.notify_all();
+    }
+
+    size_t size() const {
+        std::lock_guard<std::mutex> lock(mtx_);
+        return queue_.size();
+    }
+
+private:
+    mutable std::mutex      mtx_;
+    std::condition_variable cv_;
+    std::queue<T>           queue_;
+    bool                    shutdown_ = false;
+};`,
+  'include/ThreadSafeTaskQueue.h': String.raw`#pragma once
+
+// Priority queue of tasks, thread-safe. The ThreadPool uses this:
+// workers always pull the highest-priority pending task.
+
+#include "Task.h"
+
+#include <condition_variable>
+#include <memory>
+#include <mutex>
+#include <queue>
+#include <vector>
+
+class ThreadSafeTaskQueue {
+public:
+    void push(std::shared_ptr<Task> task) {
+        {
+            std::lock_guard<std::mutex> lock(mtx_);
+            queue_.push(std::move(task));
+        }
+        cv_.notify_one();
+    }
+
+    bool wait_and_pop(std::shared_ptr<Task>& out) {
+        std::unique_lock<std::mutex> lock(mtx_);
+        cv_.wait(lock, [this] { return !queue_.empty() || shutdown_; });
+        if (queue_.empty()) return false;
+        out = queue_.top();
+        queue_.pop();
+        return true;
+    }
+
+    void shutdown() {
+        {
+            std::lock_guard<std::mutex> lock(mtx_);
+            shutdown_ = true;
+        }
+        cv_.notify_all();
+    }
+
+    size_t size() const {
+        std::lock_guard<std::mutex> lock(mtx_);
+        return queue_.size();
+    }
+
+private:
+    struct Compare {
+        bool operator()(const std::shared_ptr<Task>& a,
+                        const std::shared_ptr<Task>& b) const {
+            return a->getPriority() < b->getPriority();
+        }
+    };
+
+    mutable std::mutex      mtx_;
+    std::condition_variable cv_;
+    std::priority_queue<
+        std::shared_ptr<Task>,
+        std::vector<std::shared_ptr<Task>>,
+        Compare
+    > queue_;
+    bool shutdown_ = false;
+};`,
+  'include/Worker.h': String.raw`#pragma once
+
+#include "ThreadSafeTaskQueue.h"
+
+#include <atomic>
+#include <thread>
+
+// Worker — owns one std::thread that loops:
+//   1. block on the queue waiting for a task
+//   2. execute it (catching anything it throws)
+//   3. repeat
+class Worker {
+public:
+    Worker(int id, ThreadSafeTaskQueue& queue);
+    ~Worker();
+
+    Worker(const Worker&)            = delete;
+    Worker& operator=(const Worker&) = delete;
+
+    void start();
+    void join();
+
+    int  getId()    const { return id_; }
+    bool isBusy()   const { return busy_.load(); }
+    long tasksRun() const { return tasksRun_.load(); }
+
+private:
+    void loop();
+
+    int                   id_;
+    ThreadSafeTaskQueue&  queue_;
+    std::thread           thread_;
+    std::atomic<bool>     busy_{false};
+    std::atomic<long>     tasksRun_{0};
+};`,
+  'src/Worker.cpp': String.raw`#include "Worker.h"
+
+#include <exception>
+#include <iostream>
+#include <memory>
+
+Worker::Worker(int id, ThreadSafeTaskQueue& queue)
+    : id_(id), queue_(queue)
+{}
+
+Worker::~Worker() {
+    if (thread_.joinable()) thread_.join();
+}
+
+void Worker::start() {
+    thread_ = std::thread([this] { loop(); });
+}
+
+void Worker::join() {
+    if (thread_.joinable()) thread_.join();
+}
+
+void Worker::loop() {
+    std::shared_ptr<Task> task;
+    while (queue_.wait_and_pop(task)) {
+        busy_.store(true);
+        try {
+            task->execute();
+        } catch (const std::exception& e) {
+            std::cerr << "[Worker " << id_ << "] task threw: "
+                      << e.what() << "\n";
+        } catch (...) {
+            std::cerr << "[Worker " << id_ << "] task threw unknown exception\n";
+        }
+        tasksRun_.fetch_add(1);
+        busy_.store(false);
+        task.reset();
+    }
+}`,
+  'include/ThreadPool.h': String.raw`#pragma once
+
+#include "ThreadSafeTaskQueue.h"
+#include "Worker.h"
+
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+class Task;
+
+class ThreadPool {
+public:
+    explicit ThreadPool(size_t numThreads);
+    ~ThreadPool();
+
+    ThreadPool(const ThreadPool&)            = delete;
+    ThreadPool& operator=(const ThreadPool&) = delete;
+
+    void submit(std::shared_ptr<Task> task);
+    void shutdown();   // idempotent
+
+    size_t pendingCount() const { return queue_.size(); }
+    size_t workerCount()  const { return workers_.size(); }
+
+private:
+    ThreadSafeTaskQueue                  queue_;
+    std::vector<std::unique_ptr<Worker>> workers_;
+    bool                                 stopped_ = false;
+};`,
+  'src/ThreadPool.cpp': String.raw`#include "ThreadPool.h"
+
+#include "Task.h"
+
+#include <utility>
+
+ThreadPool::ThreadPool(size_t numThreads) {
+    workers_.reserve(numThreads);
+    for (size_t i = 0; i < numThreads; ++i) {
+        auto w = std::make_unique<Worker>(static_cast<int>(i), queue_);
+        w->start();
+        workers_.push_back(std::move(w));
+    }
+}
+
+ThreadPool::~ThreadPool() { shutdown(); }
+
+void ThreadPool::submit(std::shared_ptr<Task> task) {
+    if (stopped_) return;
+    queue_.push(std::move(task));
+}
+
+void ThreadPool::shutdown() {
+    if (stopped_) return;
+    stopped_ = true;
+    queue_.shutdown();
+    for (auto& w : workers_) w->join();
+}`,
+  'src/Task.cpp': String.raw`#include "Task.h"
+#include <sstream>
+
+Task::Task(std::string name, int priority)
+    : name_(std::move(name))
+    , priority_(priority)
+    , status_(TaskStatus::Pending)
+    , createdAt_(std::chrono::steady_clock::now())
+{}
+
+std::string Task::describe() const {
+    std::ostringstream oss;
+    oss << "[Task: " << name_ << " | priority=" << priority_ << "]";
+    return oss.str();
+}`,
+  'src/main.cpp': String.raw`#include "Tasks.h"
+#include "ThreadPool.h"
+
+#include <chrono>
+#include <iostream>
+#include <memory>
+#include <thread>
+
+int main() {
+    constexpr size_t kNumWorkers = 4;
+    std::cout << "ThreadForge starting with " << kNumWorkers << " workers\n";
+
+    ThreadPool pool(kNumWorkers);
+
+    pool.submit(std::make_shared<PrintTask>("low priority hello",       0));
+    pool.submit(std::make_shared<ComputeTask>(1'000'000,                 0));
+    pool.submit(std::make_shared<PrintTask>("URGENT log line",          10));
+    pool.submit(std::make_shared<FailingTask>(                            5));
+    pool.submit(std::make_shared<ComputeTask>(500'000,                    3));
+    pool.submit(std::make_shared<PrintTask>("normal traffic",            1));
+    pool.submit(std::make_shared<PrintTask>("ALSO URGENT",              10));
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+    pool.shutdown();
+    std::cout << "ThreadForge done\n";
+    return 0;
+}`,
+};
+
+/* tiny C++ tokenizer — keywords, types, strings, comments, numbers, preproc */
+const KEYWORDS = new Set([
+  'class','struct','public','private','protected','virtual','override','final','explicit',
+  'const','constexpr','static','inline','return','if','else','while','for','do','break',
+  'continue','switch','case','default','try','catch','throw','new','delete','this','using',
+  'namespace','template','typename','auto','true','false','nullptr','enum','operator',
+  'mutable','noexcept','sizeof','typedef','volatile','friend','goto'
+]);
+const TYPES = new Set([
+  'int','long','short','char','bool','void','float','double','unsigned','signed','size_t',
+  'std','string','vector','queue','priority_queue','mutex','thread','atomic','shared_ptr',
+  'unique_ptr','condition_variable','lock_guard','unique_lock','runtime_error','exception',
+  'ostringstream','make_shared','make_unique','steady_clock','time_point','chrono',
+  'milliseconds','seconds','TaskStatus','Task','PrintTask','ComputeTask','FailingTask',
+  'ThreadPool','Worker','ThreadSafeQueue','ThreadSafeTaskQueue','Compare'
+]);
+
+function highlightCpp(src) {
+  // tokenizer: comments, strings, preproc lines, numbers, words, other
+  const out = [];
+  let i = 0;
+  while (i < src.length) {
+    const c = src[i];
+    // line comment
+    if (c === '/' && src[i+1] === '/') {
+      let j = src.indexOf('\n', i); if (j < 0) j = src.length;
+      out.push(['cm', src.slice(i, j)]); i = j; continue;
+    }
+    // block comment
+    if (c === '/' && src[i+1] === '*') {
+      let j = src.indexOf('*/', i+2); j = (j < 0) ? src.length : j+2;
+      out.push(['cm', src.slice(i, j)]); i = j; continue;
+    }
+    // preprocessor (start of line)
+    if (c === '#' && (i === 0 || src[i-1] === '\n')) {
+      let j = src.indexOf('\n', i); if (j < 0) j = src.length;
+      out.push(['pp', src.slice(i, j)]); i = j; continue;
+    }
+    // string
+    if (c === '"') {
+      let j = i+1;
+      while (j < src.length && src[j] !== '"') {
+        if (src[j] === '\\' && j+1 < src.length) j++;
+        j++;
+      }
+      j++;
+      out.push(['st', src.slice(i, j)]); i = j; continue;
+    }
+    // number
+    if (/[0-9]/.test(c)) {
+      let j = i;
+      while (j < src.length && /[0-9.'_xXa-fA-F]/.test(src[j])) j++;
+      out.push(['nm', src.slice(i, j)]); i = j; continue;
+    }
+    // word
+    if (/[A-Za-z_]/.test(c)) {
+      let j = i;
+      while (j < src.length && /[A-Za-z0-9_]/.test(src[j])) j++;
+      const w = src.slice(i, j);
+      if (KEYWORDS.has(w))      out.push(['kw', w]);
+      else if (TYPES.has(w))    out.push(['ty', w]);
+      else                      out.push(['',   w]);
+      i = j; continue;
+    }
+    // any other char
+    out.push(['', c]); i++;
+  }
+  return out.map(([cls, text]) =>
+    cls ? `<span class="${cls}">${escapeHTML(text)}</span>` : escapeHTML(text)
+  ).join('');
+}
+
+const $codeList = document.getElementById('codeList');
+const $codeBody = document.getElementById('codeBody');
+const $codeCrumb = document.getElementById('codeCrumb');
+let activeFile = 'include/Task.h';
+
+function renderCodeList() {
+  $codeList.innerHTML = Object.keys(FILES).map(p =>
+    `<button data-path="${p}" class="${p === activeFile ? 'active' : ''}">${p}</button>`
+  ).join('');
+}
+function showFile(path) {
+  activeFile = path;
+  $codeCrumb.textContent = path;
+  $codeBody.innerHTML = highlightCpp(FILES[path]);
+  renderCodeList();
+}
+$codeList.addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-path]');
+  if (b) showFile(b.dataset.path);
+});
+renderCodeList();
+showFile(activeFile);
+
+/* highlight inline code blocks too (in OOP / Threading tabs) */
+document.querySelectorAll('pre.code[data-lang="cpp"]').forEach(el => {
+  // Already pre-tagged with spans by the markup author; no-op.
+});
+</script>
+
+</body>
+</html>
